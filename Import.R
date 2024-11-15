@@ -35,7 +35,7 @@ token <- content$access_token
 authorization_header <- str_c(content$token_type, content$access_token, sep = " ")
 
 
-# 3. Create a Tibble of Categories --------------------------------------------------------------------------------------------------
+# 3. Overview of Categories --------------------------------------------------------------------------------------------------
 
 
 # Set up the endpoint and parameters
@@ -68,10 +68,43 @@ categories <- tibble(names = names, hrefs = hrefs, id = ids)
 categories
 
 
+
+
+# 3.1 Rock ------------------------------------------------------------------------------------------------------------
+
+# Get the category id:
+categories$id[categories$names=="Rock"] # 0JQ5DAqbMKFDXXwE9BDJAr
+# categories %>% filter(names=="Rock") %>% select(id) %>% as.character()   # Same thing in dplyr
+
+url_rock <- str_c("https://api.spotify.com/v1/browse/categories/", categories$id[categories$names=="Rock"],"/playlists")
+params <- list(
+    country = "CH",
+    limit = 10
+)
+
+# Make the GET request
+rock_r <- GET(url_rock, query = params, 
+              add_headers("Authorization" = authorization_header))
+rock <- content(rock_r, as = "parsed", encoding = "UTF-8")
+
+# Get one playlist:
+rock$playlists$items[[1]]
+rock$playlists$items[[1]]$id
+
+# Collect songs from Rock playlists
+# https://developer.spotify.com/documentation/web-api/reference/get-playlist
+url_plls <- str_c("https://api.spotify.com/v1/playlists/", rock$playlists$items[[1]]$id)
+plls_r <- GET(url_plls, query = params, 
+              add_headers("Authorization" = authorization_header))
+plls <- content(plls_r, as = "parsed", encoding = "UTF-8")
+
+# Get songs IDs:
+id = plls$tracks$items[[1]]$track$id
+
 # 4. Playlist --------------------------------------------------------------------------------
 
 # Set up the endpoint and parameters
-url_playlists <- "https://api.spotify.com/v1/playlists/{playlist_id}"
+url_playlists <- str_c("https://api.spotify.com/v1/playlists/","6nHPZM0WZCG6p8dAE9G5vF")
 params <- list(
     playlist_id = "6nHPZM0WZCG6p8dAE9G5vF"
 )
@@ -80,6 +113,9 @@ params <- list(
 response <- GET(url_playlists, 
                 query = params, 
                 add_headers("Authorization" = authorization_header))
+playlist <- content(response, as = "parsed", encoding = "UTF-8")
+
+
 
 
 
@@ -87,15 +123,37 @@ response <- GET(url_playlists,
 # 5. Top Tracks of Artist X --------------------------------------------------------------------------------
 
 # Set up the endpoint and parameters
-url_toptracks <- "https://api.spotify.com/v1/artists/{id}/top-tracks"
+url_toptracks <- str_c("https://api.spotify.com/v1/artists/","3AA28KZvwAUcZuOKwyblJQ","/top-tracks")
 params <- list(
-    id = "3AA28KZvwAUcZuOKwyblJQ"
+   market = "CH"
 )
 
 # Make the GET request
 response <- GET(url_toptracks, 
                 query = params, 
                 add_headers("Authorization" = authorization_header))
+
+toptracks <- content(response, as = "parsed", encoding = "UTF-8")
+
+
+toptracks[["tracks"]][[1]][["artists"]][[1]][["name"]]
+toptracks[["tracks"]][[1]][["name"]]
+toptracks[["tracks"]][[1]][["href"]]
+
+
+# Let's create a data frame `categories` extracting all the genres:
+artists <- names <- hrefs <- vector(mode = "character", length = 10)
+for (i in 1:10) {
+    artists[i] <- toptracks[["tracks"]][[i]][["artists"]][[1]][["name"]]
+    names[i] <- toptracks[["tracks"]][[i]][["name"]]
+    hrefs[i] <- toptracks[["tracks"]][[i]][["href"]]
+}
+toptracks <- tibble(artists = artists, names = names, hrefs = hrefs)
+toptracks
+
+saveRDS(toptracks, "repo/Gorillaz_Top10.rds")
+
+
 
 # 6. Genres -------------------------------------------------------------------------------------------------------
 
